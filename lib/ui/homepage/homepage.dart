@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:luz_smart_ilumina/controller/luz_controller.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -13,12 +14,20 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  final LuzController c = Get.find();
+  late final LuzController c;
   final TextEditingController txtNombreLuz = TextEditingController();
   bool _pushedSim = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Inicializar el controlador (cargará la luz persistente automáticamente)
+    c = Get.put(LuzController(), permanent: true);
+  }
+
+  @override
   void dispose() {
+    txtNombreLuz.dispose();
     super.dispose();
   }
 
@@ -27,44 +36,156 @@ class _HomeState extends State<Home> {
     return Obx(() {
       // Loading / error
       if (c.loading.isTrue) {
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.amber.shade600),
+                const SizedBox(height: 16),
+                const Text('Cargando luz...', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+          ),
+        );
       }
+
       final err = c.error.value;
       if (err != null) {
-        return Scaffold(body: Center(child: Text('Error: $err')));
+        return Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Error: $err', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => c.error.value = null,
+                        child: const Text('Reintentar'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => c.limpiarLuzPersistente(),
+                        child: const Text('Nueva Luz'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
       }
 
       final luz = c.luz.value;
 
-      //Si no hay luz registrada pone el formulario para crearla
+      // Si no hay luz registrada, mostrar formulario para crearla
       if (luz == null) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Crear luz')),
-          body: Padding(
-            padding: const EdgeInsets.all(16),
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: const Text('Configurar Luz Smart'),
+            centerTitle: true,
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Nombre de la luz'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: txtNombreLuz,
-                  decoration: const InputDecoration(
-                    hintText: 'Ej: Luz Sala',
-                    border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.lightbulb_outline,
+                      size: 64,
+                      color: Colors.amber.shade700,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 32),
+                const Text(
+                  'Nombre de tu luz',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Elige un nombre identificativo para tu luz inteligente',
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: txtNombreLuz,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Luz del Salón',
+                    prefixIcon: const Icon(Icons.lightbulb),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.amber.shade600,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
+                  height: 56,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
-                    label: const Text('Guardar y generar QR'),
+                    icon: const Icon(Icons.qr_code_2),
+                    label: const Text(
+                      'Crear y Generar QR',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade600,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
                     onPressed: () async {
                       final nombre = txtNombreLuz.text.trim();
                       if (nombre.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Ingresa un nombre')),
+                          SnackBar(
+                            content: const Text(
+                              'Por favor, ingresa un nombre para tu luz',
+                            ),
+                            backgroundColor: Colors.orange.shade600,
+                          ),
                         );
                         return;
                       }
@@ -73,12 +194,10 @@ class _HomeState extends State<Home> {
                         encendida: false,
                         intensidad: 0.8,
                         color: Colors.amber,
-                        idHabitacion: null, // lo define el control remoto
-                        vinculada: false, // el control remoto la pondrá en true
+                        idHabitacion: null,
+                        vinculada: false,
                       );
-                      await c.crearLuz(
-                        nueva,
-                      ); // crea en Firestore y empieza stream
+                      await c.crearLuz(nueva);
                     },
                   ),
                 ),
@@ -88,61 +207,347 @@ class _HomeState extends State<Home> {
         );
       }
 
-      // Si la luz está vinculada muestra el simulador sino muestra el QR
+      // Si la luz está vinculada, navegar al simulador
       if (luz.vinculada && !_pushedSim) {
         _pushedSim = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Get.toNamed('/simulador');
         });
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return Scaffold(
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  luz.color.withOpacity(0.3),
+                  luz.color.withOpacity(0.1),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: luz.color.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.lightbulb, size: 64, color: luz.color),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Abriendo simulador...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: luz.color,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CircularProgressIndicator(color: luz.color),
+                ],
+              ),
+            ),
+          ),
+        );
       }
 
+      // Reset flag cuando vuelve de simulador
+      if (_pushedSim && !luz.vinculada) {
+        _pushedSim = false;
+      }
+
+      // Mostrar QR y datos de la luz
       final dataJson = jsonEncode(luz.toMap());
       return Scaffold(
-        appBar: AppBar(title: const Text('QR de la luz')),
-        body: Padding(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          title: const Text('Tu Luz Smart'),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          actions: [
+            PopupMenuButton(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: () => c.escucharLuzID(luz.id),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.refresh),
+                      SizedBox(width: 8),
+                      Text('Actualizar'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  onTap: () => c.limpiarLuzPersistente(),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Nueva Luz', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        // ... resto del código del QR y UI (igual que antes)
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Card(
-                child: ListTile(
-                  title: Text(luz.nombre.isEmpty ? 'Luz' : luz.nombre),
-                  subtitle: Text(
-                    'ID: ${luz.id}\n'
-                    'Encendida: ${luz.encendida} • '
-                    'Intensidad: ${(luz.intensidad * 100).round()}% • '
-                    'Vinculada: ${luz.vinculada}',
+              // Tarjeta principal con información de la luz
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      luz.color.withOpacity(0.1),
+                      luz.color.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  trailing: CircleAvatar(backgroundColor: luz.color),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: luz.color.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: luz.color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            luz.encendida
+                                ? Icons.lightbulb
+                                : Icons.lightbulb_outline,
+                            size: 32,
+                            color: luz.color,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                luz.nombre.isEmpty ? 'Luz' : luz.nombre,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Estado: ${luz.encendida ? 'Encendida' : 'Apagada'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: luz.encendida
+                                      ? Colors.green.shade600
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // ID con botón para copiar
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.tag,
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'ID: ${luz.id}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Intensidad y estado de vinculación
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.brightness_6,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Intensidad: ${(luz.intensidad * 100).round()}%'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: luz.vinculada
+                                ? Colors.green.shade100
+                                : Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            luz.vinculada ? 'Vinculada' : 'Sin vincular',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: luz.vinculada
+                                  ? Colors.green.shade700
+                                  : Colors.orange.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Código QR
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Código QR para Vincular',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: QrImageView(
+                        data: dataJson,
+                        version: QrVersions.auto,
+                        size: 200,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Escanea este código con la app de control remoto',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
-              Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+              // Botón para ver simulador manualmente
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.visibility),
+                  label: const Text('Ver Simulador'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: luz.color,
+                    side: BorderSide(color: luz.color),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  padding: const EdgeInsets.all(12),
-                  child: QrImageView(
-                    data: dataJson,
-                    version: QrVersions.auto,
-                    size: 240,
-                    backgroundColor: Colors.white,
-                  ),
+                  onPressed: () {
+                    Get.toNamed('/simulador');
+                  },
                 ),
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    dataJson,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+              const SizedBox(height: 24),
+              // Información adicional
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Cuando "vinculada" sea true desde el control remoto, se abrirá la simulación automáticamente.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue.shade600,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Información',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Cuando la luz sea vinculada desde el control remoto, se abrirá automáticamente la simulación en tiempo real.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
