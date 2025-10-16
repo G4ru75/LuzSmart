@@ -2,7 +2,7 @@ specVersion: "v1"
 serviceId: "luzsmartilumina"
 location: "us-central1"
 schema:
-  source: "./schema"
+  source: "./lib/main.dart"
   datasource:
     postgresql:
       database: "fdcdb"
