@@ -31,6 +31,13 @@ class MyApp extends StatelessWidget {
           transitionDuration: const Duration(milliseconds: 250),
         ),
       ],
+      unknownRoute: GetPage(
+        name: '/404',
+        page: () => Scaffold(
+          appBar: AppBar(title: const Text('Página no encontrada')),
+          body: const Center(child: Text('La página solicitada no existe')),
+        ),
+      ),
     );
   }
 }

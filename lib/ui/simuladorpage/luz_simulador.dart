@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../controller/luz_controller.dart';
+import 'package:luz_smart_ilumina/controller/luz_controller.dart';
 import '../../models/luz_model.dart';
 
 /// Simulador de luz: pantalla completa sin posibilidad de regresar
@@ -10,7 +10,7 @@ class luz_simulador extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<LuzController>();
+    final LuzController c = Get.find<LuzController>();
 
     return Obx(() {
       final Luces? l = c.luz.value;

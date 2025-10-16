@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:luz_smart_ilumina/controller/luz_controller.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -14,15 +13,13 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  late final LuzController c;
+  late final LuzController c = Get.find<LuzController>();
   final TextEditingController txtNombreLuz = TextEditingController();
   bool _pushedSim = false;
 
   @override
   void initState() {
     super.initState();
-    // Inicializar el controlador (cargará la luz persistente automáticamente)
-    c = Get.put(LuzController(), permanent: true);
   }
 
   @override
@@ -270,32 +267,6 @@ class _HomeState extends State<Home> {
           backgroundColor: Colors.white,
           foregroundColor: Colors.black87,
           elevation: 0,
-          actions: [
-            PopupMenuButton(
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  onTap: () => c.escucharLuzID(luz.id),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.refresh),
-                      SizedBox(width: 8),
-                      Text('Actualizar'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  onTap: () => c.limpiarLuzPersistente(),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Nueva Luz', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
         // ... resto del código del QR y UI (igual que antes)
         body: SingleChildScrollView(
